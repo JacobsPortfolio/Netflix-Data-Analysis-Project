@@ -1,0 +1,73 @@
+Data Analysis Project SQL Queries with notes
+
+-- Count of Times Added column SQL, counts how many times a show was added
+
+SELECT
+ROW_NUMBER() OVER (
+    PARTITION BY show_title, season_title 
+    ORDER BY week
+) AS count_of_times_added
+FROM watch_data 
+
+
+-- Finds customers with Multiple active subs from subscription data
+
+SELECT 
+    customer_id,
+    COUNT(*) AS active_subscription_count
+FROM subscriptions
+WHERE status = 'active'
+GROUP BY customer_id
+HAVING COUNT(*) > 1;
+
+-- CTE that standardizes missing hours_viewed and sets up our base table before we impute missing data
+
+WITH base AS (
+    SELECT 
+        week,
+        category,
+        show_title,
+        season_title,
+        weekly_rank,
+        cumulative_weeks_in_top_10,
+        NULLIF(weekly_hours_viewed, 0) AS hrs,
+        ROW_NUMBER() OVER (
+            PARTITION BY show_title, season_title 
+            ORDER BY week
+        ) AS release_num
+    FROM watch_data
+),
+
+--Lead lag CTE to add columns for us to calculate missing hours viewed
+
+neighbours AS (
+    SELECT 
+        b.*,
+        LAG(hrs)  OVER (PARTITION BY show_title, season_title ORDER BY release_num) 
+	AS prev_valid,
+        LEAD(hrs) OVER (PARTITION BY show_title, season_title ORDER BY release_num) 
+	AS next_valid
+    FROM base b
+)
+
+
+-- Final query to pull viewer data and impute missing hours_viewed from service outage using a CASE statement
+
+SELECT 
+    week,
+    category,
+    show_title,
+    season_title,
+    weekly_rank,
+    cumulative_weeks_in_top_10,
+    release_num,
+    CASE
+        WHEN hrs IS NOT NULL THEN hrs
+        WHEN prev_valid IS NOT NULL AND next_valid IS NOT NULL 
+            THEN (prev_valid + next_valid) / 2.0
+        WHEN next_valid IS NOT NULL THEN next_valid
+        WHEN prev_valid IS NOT NULL THEN prev_valid
+        ELSE NULL
+    END AS weekly_hours_viewed_imputed
+FROM neighbours
+ORDER BY show_title, season_title, release_num;
