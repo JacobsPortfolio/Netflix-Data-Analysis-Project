@@ -1,6 +1,6 @@
 Data Analysis Project SQL Queries with notes
 
--- Query #1: Column that uses window function to act as a counter how many times a show was added (1st, 2nd, 3rd week a show was available for streaming etc.)
+-- Query #1: Column that uses window function to act as a counter how many times a show was added (1st, 2nd, 3rd week a show was available for streaming)
 
 SELECT
 ROW_NUMBER() OVER (
