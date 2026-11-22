@@ -1,16 +1,16 @@
 Data Analysis Project SQL Queries with notes
 
--- Count of Times Added column SQL, counts how many times a show was added
+-- Query #1: Column that uses window function to act as a counter how many times a show was added (1st, 2nd, 3rd week a show was available for streaming etc.)
 
 SELECT
 ROW_NUMBER() OVER (
     PARTITION BY show_title, season_title 
     ORDER BY week
-) AS count_of_times_added
-FROM watch_data 
+) AS release_num
+FROM watch_data; 
 
 
--- Finds customers with Multiple active subs from subscription data
+-- Query #2: Finds customers with Multiple active subs from subscription data
 
 SELECT 
     customer_id,
@@ -20,7 +20,7 @@ WHERE status = 'active'
 GROUP BY customer_id
 HAVING COUNT(*) > 1;
 
--- CTE that standardizes missing hours_viewed and sets up our base table before we impute missing data
+-- Query #3: multi-CTE that standardizes missing hours_viewed and sets up our base table before we impute missing data using a CASE statement
 
 WITH base AS (
     SELECT 
@@ -40,7 +40,7 @@ WITH base AS (
 
 --Lead lag CTE to add columns for us to calculate missing hours viewed
 
-neighbours AS (
+neighbors AS (
     SELECT 
         b.*,
         LAG(hrs)  OVER (PARTITION BY show_title, season_title ORDER BY release_num) 
@@ -51,7 +51,9 @@ neighbours AS (
 )
 
 
--- Final query to pull viewer data and impute missing hours_viewed from service outage using a CASE statement
+-- Final query to pull viewer data and impute missing hours_viewed from service outage using a CASE statement.
+-- Note: data imputation and release_num counter column is accomplished using COUNTIF functions within the attached Excel file.
+-- This is just a demonstration on how the dataset would be pulled if using a SQL query.
 
 SELECT 
     week,
@@ -69,5 +71,5 @@ SELECT
         WHEN prev_valid IS NOT NULL THEN prev_valid
         ELSE NULL
     END AS weekly_hours_viewed_imputed
-FROM neighbours
+FROM neighbors
 ORDER BY show_title, season_title, release_num;
